@@ -15,13 +15,15 @@ router.get('/', function(req, res) {
     res.json({ message: 'hooray! welcome to our api!' });   
 });
 
-router.get('/posts/new', function(req, res) {
+router.get('/posts/hot', function(req, res) {
 
     var offset = parseInt(req.query.offset || 0, 10);
 
     var query = knex('posts').limit(20).offset(offset);
-    query.select('*');
-    query.select(knex.raw('((LOG10((posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, NOW(), posts.created_at)) / 604800) as strength'));
+    query.select('posts.*');
+    query.select('sources.score_avg');
+    query.select(knex.raw('(LOG10(posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, NOW(), posts.created_at) / 604800) as strength'));
+    query.join('sources', 'posts.source_id', 'sources.id');
     query.orderBy('strength', 'desc');
 
     query.limit(20).then(function(posts) {
@@ -40,7 +42,7 @@ router.get('/posts/trending', function(req, res) {
 
     var query = knex('posts').limit(20).offset(offset);
     query.select('*');
-    query.select(knex.raw('((LOG10(posts.social_score) - TIMESTAMPDIFF(SECOND, NOW(), posts.created_at)) / 604800) as strength'));
+    query.select(knex.raw('(LOG10(posts.social_score) - TIMESTAMPDIFF(SECOND, NOW(), posts.created_at) / 604800) as strength'));
     query.orderBy('strength', 'desc');
 
     query.limit(20).then(function(posts) {
