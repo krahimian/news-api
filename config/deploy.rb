@@ -36,14 +36,14 @@ namespace :forever do
   desc 'Stop node script'
   task :stop do
     on roles(:all), in: :parallel do
-      execute "sudo forever stopall --killSignal=SIGTERM; true"
+      execute "sudo forever stop #{current_path}/index.js --killSignal=SIGTERM; true"
     end
   end
 
   desc 'Start node script'
   task :start do
     on roles(:all), in: :parallel do |host|
-      execute "sudo NODE_ENV=production forever start -s #{release_path}/index.js"
+      execute "sudo NODE_ENV=production forever start -s #{current_path}/index.js"
     end
   end
 
