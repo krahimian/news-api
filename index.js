@@ -15,6 +15,27 @@ router.get('/', function(req, res) {
     res.json({ message: 'hooray! welcome to our api!' });   
 });
 
+router.get('/posts/new', function(req, res) {
+
+    var offset = parseInt(req.query.offset || 0, 10);
+
+    var query = knex('posts').offset(offset);
+    query.select('posts.*', 'sources.score_avg');
+    query.select(knex.raw('sources.title as source_title'));
+    query.select(knex.raw('sources.logo_url as source_logo_url'));
+    query.join('sources', 'posts.source_id', 'sources.id');
+    query.orderBy('created_at', 'desc');
+
+    query.limit(100).then(function(posts) {
+	res.status(200).send(posts);
+    }).catch(function(err) {
+	res.status(500).send({
+	    error: err
+	});
+    });
+
+});
+
 router.get('/posts/hot', function(req, res) {
 
     var offset = parseInt(req.query.offset || 0, 10);
