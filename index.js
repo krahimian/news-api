@@ -20,8 +20,9 @@ router.get('/posts/hot', function(req, res) {
     var offset = parseInt(req.query.offset || 0, 10);
 
     var query = knex('posts').limit(20).offset(offset);
-    query.select('posts.*');
-    query.select('sources.score_avg');
+    query.select('posts.*', 'sources.score_avg');
+    query.select(knex.raw('sources.title as source_title'));
+    query.select(knex.raw('sources.logo_url as source_logo_url'));
     query.select(knex.raw('(LOG10(posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, NOW(), posts.created_at) / 604800) as strength'));
     query.join('sources', 'posts.source_id', 'sources.id');
     query.orderBy('strength', 'desc');
@@ -41,8 +42,11 @@ router.get('/posts/trending', function(req, res) {
     var offset = parseInt(req.query.offset || 0, 10);
 
     var query = knex('posts').limit(20).offset(offset);
-    query.select('*');
+    query.select('posts.*');
+    query.select(knex.raw('sources.title as source_title'));
+    query.select(knex.raw('sources.logo_url as source_logo_url'));
     query.select(knex.raw('(LOG10(posts.social_score) - TIMESTAMPDIFF(SECOND, NOW(), posts.created_at) / 604800) as strength'));
+    query.join('sources', 'posts.source_id', 'sources.id');
     query.orderBy('strength', 'desc');
 
     query.limit(20).then(function(posts) {
