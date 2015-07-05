@@ -80,6 +80,31 @@ router.get('/posts/trending', function(req, res) {
 
 });
 
+router.get('/posts/top', function(req, res) {
+
+    var offset = parseInt(req.query.offset || 0, 10);
+    var limit = parseInt(req.query.limit || 5, 10);
+    var age = parseInt(req.query.age || 24, 10);
+
+    var query = knex('posts').offset(offset);
+    query.select('posts.*');
+    query.select(knex.raw('sources.title as source_title'));
+    query.select(knex.raw('sources.logo_url as source_logo_url'));
+    query.select(knex.raw('(posts.score / sources.score_avg) as strength'));
+    query.join('sources', 'posts.source_id', 'sources.id');
+    query.whereRaw('TIMESTAMPDIFF(HOUR, posts.created_at, NOW()) < ?', age);
+    query.orderBy('strength', 'desc');
+
+    query.limit(limit).then(function(posts) {
+	res.status(200).send(posts);
+    }).catch(function(err) {
+	res.status(500).send({
+	    error: err
+	});
+    });
+
+});
+
 var app = express();
 
 app.use(function(req, res, next) {
