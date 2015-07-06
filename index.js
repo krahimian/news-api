@@ -90,7 +90,7 @@ router.get('/posts/top', function(req, res) {
     var age = parseInt(req.query.age || 24, 10);
 
     var query = knex('posts').offset(offset);
-    query.select('posts.*');
+    query.select('posts.*', 'sources.score_avg');
     query.select(knex.raw('sources.title as source_title'));
     query.select(knex.raw('sources.logo_url as source_logo_url'));
     query.select(knex.raw('(posts.score / sources.score_avg) as strength'));
