@@ -65,10 +65,10 @@ router.get('/posts/trending', function(req, res) {
     var offset = parseInt(req.query.offset || 0, 10);
 
     var query = knex('posts').offset(offset);
-    query.select('posts.*');
+    query.select('posts.*', 'sources.social_score_avg');
     query.select(knex.raw('sources.title as source_title'));
     query.select(knex.raw('sources.logo_url as source_logo_url'));
-    query.select(knex.raw('(LOG10(posts.social_score) - TIMESTAMPDIFF(SECOND, posts.created_at,  NOW()) / 45000) as strength'));
+    query.select(knex.raw('(LOG10(posts.social_score / sources.social_score_avg) - TIMESTAMPDIFF(SECOND, posts.created_at,  NOW()) / 45000) as strength'));
     query.join('sources', 'posts.source_id', 'sources.id');
     query.orderBy('strength', 'desc');
     query.groupBy('content_url');
