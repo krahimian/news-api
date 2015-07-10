@@ -90,10 +90,10 @@ router.get('/posts/top', function(req, res) {
     var age = parseInt(req.query.age || 24, 10);
 
     var query = knex('posts').offset(offset);
-    query.select('posts.*', 'sources.score_avg');
+    query.select('posts.*', 'sources.social_score_avg');
     query.select(knex.raw('sources.title as source_title'));
     query.select(knex.raw('sources.logo_url as source_logo_url'));
-    query.select(knex.raw('(posts.score / sources.score_avg) as strength'));
+    query.select(knex.raw('(posts.social_score / sources.social_score_avg) as strength'));
     query.join('sources', 'posts.source_id', 'sources.id');
     query.whereRaw('TIMESTAMPDIFF(HOUR, posts.created_at, NOW()) < ?', age);
     query.orderBy('strength', 'desc');
