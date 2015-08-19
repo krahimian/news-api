@@ -1,3 +1,7 @@
+///////////////////
+require('longjohn');
+///////////////////
+
 var config = require('./config');
 var log = require('log')(config.log);
 var express = require('express');
@@ -129,4 +133,6 @@ app.use('/api', router);
 var port = config.port || process.env.PORT || 8080;
 app.listen(port, function() {
     log.info('API listening on port:', port);
+}).on('error', function(err) {
+    log.error(err);
 });
