@@ -30,6 +30,18 @@ router.post('/', utils.hasParams(['name']), function(req, res) {
     });
 });
 
+router.get('/', function(req, res) {
+
+    res.app.locals.db('channels').select().then(function(channels) {
+
+	res.status(200).send(channels);
+
+    }).catch(function(err) {
+	res.status(500).send({ error: err });
+    });
+
+});
+
 router.use('/:channel', require('./channel'));
 
 module.exports = router;
