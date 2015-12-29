@@ -67,7 +67,7 @@ namespace :npm do
   desc 'Install app npm modules'
   task :install do
     on roles(:all), in: :parallel do
-      execute "cd #{release_path}/ && npm install --production"
+      execute "cd #{release_path}/ && sudo npm install --production"
     end
   end
 end
