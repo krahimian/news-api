@@ -60,7 +60,7 @@ router.delete('/', utils.hasParams(['source_id']), function(req, res) {
 
 });
 
-router.get('/posts', function(req, res) {
+router.get('/trending', function(req, res) {
 
     var offset = parseInt(req.query.offset || 0, 10);
 
@@ -75,14 +75,44 @@ router.get('/posts', function(req, res) {
     query.orderBy('strength', 'desc');
     query.groupByRaw('IFNULL(posts.content_url,posts.url)');
     query.where('channels.name', req.params.channel);
+    query.where('posts.created_at', '<', 'NOW() - INTERVAL 2 DAY');
 
-    query.limit(100).then(function(posts) {
+    query.limit(50).then(function(posts) {
 	if (!posts.length) res.status(404).send({ error: 'empty' });
 	else res.status(200).send(posts);
     }).catch(function(err) {
 	res.status(500).send({
 	    error: err
 	});
+    });
+
+});
+
+router.get('/latest', function(req, res) {
+
+    var offset = parseInt(req.query.offset || 0, 10);
+    var limit = parseInt(req.query.limit || 5, 10);
+
+    var query = req.app.locals.db('sources').offset(offset);
+    query.select('posts.*', 'sources.score_avg');
+    query.select(req.app.locals.db.raw('sources.title as source_title'));
+    query.select(req.app.locals.db.raw('sources.logo_url as source_logo_url'));
+    query.select(req.app.locals.db.raw('(LOG10(posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, posts.created_at, NOW()) / 1800) as strength'));
+    query.join('posts', 'posts.source_id', 'sources.id');
+    query.join('channels_sources', 'channels_sources.source_id', 'sources.id');
+    query.join('channels', 'channels.id', 'channels_sources.channel_id');
+    query.orderBy('strength', 'desc');
+    query.groupByRaw('IFNULL(posts.content_url,posts.url)');
+    query.where('channels.name', req.params.channel);
+    query.where('posts.created_at', '<', 'NOW() - INTERVAL 2 DAY');
+
+    query.limit(limit).then(function(posts) {
+	if (!posts.length) res.status(404).send({ error: 'empty' });
+        else res.status(200).send(posts);
+    }).catch(function(err) {
+        res.status(500).send({
+            error: err
+        });
     });
 
 });
