@@ -167,7 +167,7 @@ router.get('/top', function(req, res) {
     query.join('posts', 'posts.source_id', 'sources.id');
     query.join('channels_sources', 'channels_sources.source_id', 'sources.id');
     query.join('channels', 'channels.id', 'channels_sources.channel_id');
-    query.whereRaw('TIMESTAMPDIFF(HOUR, posts.created_at, NOW()) < ?', age);
+    query.whereRaw('posts.created_at > (NOW() - INTERVAL ? HOUR)', age);
     query.orderBy('strength', 'desc');
     query.groupByRaw('IFNULL(posts.content_url,posts.url)');
     query.where('channels.name', req.params.channel);
