@@ -4,7 +4,7 @@ var express = require('express'),
     utils = require('../utils'),
     router = express.Router();
 
-router.post('/', utils.hasParams(['name']), function(req, res) {
+router.post('/', utils.isAuthenticated, utils.hasParams(['name']), function(req, res) {
 
     var name = req.query.name;
 

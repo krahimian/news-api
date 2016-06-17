@@ -14,10 +14,12 @@ if (fs.existsSync(config_file)) {
     })[0];
 
     config.db.host = db.internal_ip;
+    config.secret = 'FjwL30nVpZIUUrB46ZxG';
 
 } else {
 
     config = {
+	secret: 'FjwL30nVpZIUUrB46ZxG',
 	log: {
 	    level: 'debug'
 	},	

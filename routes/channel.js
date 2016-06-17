@@ -5,7 +5,7 @@ var express = require('express'),
     utils = require('../utils'),
     router = express.Router({mergeParams: true});
 
-router.post('/', utils.hasParams(['source_id']), function(req, res) {
+router.post('/', utils.isAuthenticated, utils.hasParams(['source_id']), function(req, res) {
 
     req.app.locals.db('channels').select().where('name', req.params.channel).then(function(channel) {
 
@@ -35,7 +35,7 @@ router.post('/', utils.hasParams(['source_id']), function(req, res) {
 
 });
 
-router.delete('/', utils.hasParams(['source_id']), function(req, res) {
+router.delete('/', utils.isAuthenticated, utils.hasParams(['source_id']), function(req, res) {
 
     req.app.locals.db('channels').select().where('name', req.params.channel).then(function(channel) {
 
