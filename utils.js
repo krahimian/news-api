@@ -21,7 +21,18 @@ var hasParams = function(params) {
 	}
     };
 };
+var isAuthenticated = function(req, res, next) {
+    if (!req.user) {
+	res.status(401).send({
+	    data: 'no session',
+	    session: null
+	});
+    } else {
+	next();
+    }
+};
 
 module.exports = {
-    hasParams: hasParams
+    hasParams: hasParams,
+    isAuthenticated: isAuthenticated
 };

@@ -6,7 +6,7 @@ var express = require('express'),
     utils = require('../utils'),
     async = require('async');
 
-router.post('/', utils.hasParams(['url']), function(req, res) {
+router.post('/', utils.isAuthenticated, utils.hasParams(['url']), function(req, res) {
 
     var url = req.query.url;
     var fetcher = Fetcher(url);
