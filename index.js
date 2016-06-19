@@ -2,6 +2,7 @@ var config = require('./config');
 var log = require('log')(config.log);
 var express = require('express');
 var compression = require('compression');
+var bodyParser = require('body-parser');
 var async = require('async');
 
 var app = express();
@@ -27,6 +28,8 @@ app.use(function(req, res, next) {
 });
 
 app.use(compression());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/api', require('./routes'));
 
 var port = config.port || process.env.PORT || 8080;

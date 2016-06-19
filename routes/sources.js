@@ -10,35 +10,17 @@ router.post('/', utils.isAuthenticated, utils.hasParams(['url']), function(req, 
 
     var url = req.query.url;
     var fetcher = Fetcher(url);
-
-    var saveSource = function(source, cb) {
-
-	req.app.locals.db('sources').select().where('feed_url', source.feed_url).then(function(rows) {
-
-	    if (rows.length) {
-		cb(null, rows[0]);
-		return;
-	    }
-
-	    req.app.locals.db('sources').insert(source).asCallback(cb);
-
-	}).catch(function(e) {
-	    cb(e);
-	});
-    };
-
     var source = {};
 
-    async.applyEachSeries([
-	fetcher.build.bind(fetcher),
-	saveSource
-    ], source, function(err, result) {
-	if (err) {
-	    res.status(500).send({ error: err });
-	    return;
+    async.waterfall([
+	function(cb) {
+	    fetcher.build(source, cb);
+	},
+	function(cb) {
+	    fetcher.getPosts(source, cb);
 	}
-
-	res.status(200).send({ source: result });
+    ], function(err) {
+	res.status(err ? 500 : 200).send(err ? { error: err } : source);
     });
 
 });

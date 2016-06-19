@@ -2,23 +2,37 @@
 
 var express = require('express'),
     async = require('async'),
+    Fetcher = require('fetcher'),
     utils = require('../utils'),
     router = express.Router({mergeParams: true});
 
-router.post('/', utils.isAuthenticated, utils.hasParams(['source_id']), function(req, res) {
+var find = function(req, res, next) {
+    var query = req.app.locals.db('channels').select().where('name', req.params.channel);
+    query.then(function(results) {
+	res.locals.channel = results[0];
 
-    req.app.locals.db('channels').select().where('name', req.params.channel).then(function(channel) {
-
-	channel = channel[0];
-
-	if (!channel.id) {
+	if (!res.locals.channel.id) {
 	    res.status(400).send({ error: 'channel does not exist' });
 	    return;
 	}
 
+	next();
+    }).catch(function(err) {
+	res.status(500).send({ error: err });
+    });
+};
+
+router.post('/', utils.isAuthenticated, find, function(req, res) {
+
+    if (!req.query.source_id && !req.body.url) {
+	res.status(400).send({ error: 'missing source_id or url' });
+	return;
+    }
+
+    var response = function(source_id) {
 	var sql = req.app.locals.db('channels_sources').insert({
-	    source_id: req.query.source_id,
-	    channel_id: channel.id
+	    source_id: source_id,
+	    channel_id: res.locals.channel.id
 	}).toString();
 
 	sql = sql.replace('insert', 'insert ignore');
@@ -28,49 +42,72 @@ router.post('/', utils.isAuthenticated, utils.hasParams(['source_id']), function
 	}).catch(function(err) {
 	    res.status(500).send({ error: err });
 	});
+    };
 
-    }).catch(function(err) {
-	res.status(500).send({ error: err });
-    });
+    if (req.query.source_id) {
+	response(req.query.source_id);
+	return;
+    }
 
-});
+    var s = {};
 
-router.delete('/', utils.isAuthenticated, utils.hasParams(['source_id']), function(req, res) {
+    async.waterfall([
+	function(cb) {
+	    var url = req.body.url;
+	    var fetcher = Fetcher(url);
+	    fetcher.build({}, cb);
+	},
+	function(source, cb) {
+	    s = source;
+	    var q = req.app.locals.db('sources').select().where('feed_url', source.feed_url);
+	    q.asCallback(cb);
+	},
+	function(rows, cb) {
+	    if (rows.length) {
+		s = rows[0];
+		cb(null);
+		return;
+	    }
 
-    req.app.locals.db('channels').select().where('name', req.params.channel).then(function(channel) {
-
-	channel = channel[0];
-
-	if (!channel.id) {
-	    res.status(400).send({ error: 'channel does not exist' });
-	    return;
+	    req.app.locals.db('sources').insert({
+		feed_url: s.feed_url,
+		title: s.title,
+		logo_url: s.logo_url,
+		created_at: new Date(),
+		updated_at: new Date()
+	    }).asCallback(cb);
 	}
-
-	req.app.locals.db('channels_sources').del({
-	    source_id: req.query.source_id,
-	    channel_id: channel.id
-	}).then(function() {
-	    res.status(200).send({success: true});
-	}).catch(function(err) {
+    ], function(err, id) {
+	if (err) {
 	    res.status(500).send({ error: err });
-	});
+	    return;
+	};
 
+	response(id || s.id);
+    });
+
+});
+
+router.delete('/', utils.isAuthenticated, utils.hasParams(['source_id']), find, function(req, res) {
+
+    req.app.locals.db('channels_sources').del({
+	source_id: req.query.source_id,
+	channel_id: res.locals.channel.id
+    }).then(function() {
+	res.status(200).send({success: true});
     }).catch(function(err) {
 	res.status(500).send({ error: err });
     });
 
 });
 
-router.get('/trending', function(req, res) {
+router.get('/trending', find, function(req, res) {
 
     var offset = parseInt(req.query.offset || 0, 10);
 
     async.waterfall([
 	function(cb) {
-	    req.app.locals.db('channels').where('name', req.params.channel).asCallback(cb);
-	},
-	function(channels, cb) {
-	    req.app.locals.db('channels_sources').where('channel_id', channels[0].id).asCallback(cb);
+	    req.app.locals.db('channels_sources').where('channel_id', res.locals.channel.id).asCallback(cb);
 	},
 	function(channels_sources, cb) {
 	    var source_ids = [];
@@ -105,17 +142,14 @@ router.get('/trending', function(req, res) {
     });
 });
 
-router.get('/latest', function(req, res) {
+router.get('/latest', find, function(req, res) {
 
     var offset = parseInt(req.query.offset || 0, 10);
     var limit = parseInt(req.query.limit || 5, 10);
 
     async.waterfall([
 	function(cb) {
-	    req.app.locals.db('channels').where('name', req.params.channel).asCallback(cb);
-	},
-	function(channels, cb) {
-	    req.app.locals.db('channels_sources').where('channel_id', channels[0].id).asCallback(cb);
+	    req.app.locals.db('channels_sources').where('channel_id', res.locals.channel.id).asCallback(cb);
 	},
 	function(channels_sources, cb) {
 	    var source_ids = [];
