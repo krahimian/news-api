@@ -7,7 +7,7 @@ var express = require('express'),
     jwt = require('jsonwebtoken');
 
 var authenticate = function(req, res, next) {
-    var token = req.param('token');
+    var token = req.query.token;
     if (token && token !== 'undefined') {
 	jwt.verify(token, config.secret, function(err, decoded) {
 	    if (err) log.error(err);
@@ -19,7 +19,7 @@ var authenticate = function(req, res, next) {
     }
 };
 
-router.all('/', authenticate);
+router.use('/', authenticate);
 router.use('/sources', require('./sources'));
 router.use('/channels', require('./channels'));
 
