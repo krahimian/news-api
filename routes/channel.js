@@ -123,7 +123,6 @@ router.get('/trending', find, function(req, res) {
 	    query.select(req.app.locals.db.raw('(LOG10(posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, posts.created_at, NOW()) / 45000) as strength'));
 	    query.join('posts', 'posts.source_id', 'sources.id');
 	    query.orderBy('strength', 'desc');
-	    query.groupByRaw('IFNULL(posts.content_url,posts.url)');
 	    query.whereIn('sources.id', source_ids);
 	    query.whereRaw('posts.created_at > (NOW() - INTERVAL 2 DAY)');
 
@@ -165,7 +164,6 @@ router.get('/latest', find, function(req, res) {
 	    query.select(req.app.locals.db.raw('(LOG10(posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, posts.created_at, NOW()) / 1800) as strength'));
 	    query.join('posts', 'posts.source_id', 'sources.id');
 	    query.orderBy('strength', 'desc');
-	    query.groupByRaw('IFNULL(posts.content_url,posts.url)');
 	    query.whereRaw('posts.created_at > (NOW() - INTERVAL 2 DAY)');	    
 	    query.whereIn('sources.id', source_ids);	    
 
@@ -203,7 +201,6 @@ router.get('/top', function(req, res) {
     query.join('channels', 'channels.id', 'channels_sources.channel_id');
     query.whereRaw('posts.created_at > (NOW() - INTERVAL ? HOUR)', age);
     query.orderBy('strength', 'desc');
-    query.groupByRaw('IFNULL(posts.content_url,posts.url)');
     query.where('channels.name', req.params.channel);
 
     query.limit(limit).then(function(posts) {
