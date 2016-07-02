@@ -203,6 +203,9 @@ router.get('/top', function(req, res) {
     query.orderBy('strength', 'desc');
     query.where('channels.name', req.params.channel);
 
+    // exclusions
+    query.whereNot('sources.id', 96);
+
     query.limit(limit).then(function(posts) {
 	if (!posts.length) res.status(404).send({ error: 'empty' });	
 	else res.status(200).send(posts);
