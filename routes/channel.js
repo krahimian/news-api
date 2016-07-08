@@ -112,6 +112,19 @@ router.get('/trending', find, function(req, res) {
     var decay = parseInt(req.query.decay || 90000, 10);
     var excluded_ids = []; //TODO - get from query
 
+    var anger_lt = parseFloat(req.query.anger_lt);
+    var anger_gt = parseFloat(req.query.anger_gt);
+    var disgust_lt = parseFloat(req.query.disgust_lt);
+    var disgust_gt = parseFloat(req.query.disgust_gt);
+    var fear_lt = parseFloat(req.query.fear_lt);
+    var fear_gt = parseFloat(req.query.fear_gt);
+    var joy_lt = parseFloat(req.query.joy_lt);
+    var joy_gt = parseFloat(req.query.joy_gt);
+    var sadness_lt = parseFloat(req.query.sadness_lt);
+    var sadness_gt = parseFloat(req.query.sadness_gt);
+    var sentiment_lt = parseFloat(req.query.sentiment_lt);
+    var sentiment_gt = parseFloat(req.query.sentiment_gt);
+
     async.waterfall([
 	function(cb) {
 	    req.app.locals.db('channels_sources').where('channel_id', res.locals.channel.id).asCallback(cb);
@@ -133,6 +146,55 @@ router.get('/trending', find, function(req, res) {
 	    query.whereIn('sources.id', source_ids);
 	    query.whereRaw('posts.created_at > (NOW() - INTERVAL ? HOUR)', age);
 	    query.whereNotIn('posts.id', excluded_ids);
+
+	    if (anger_lt || anger_gt)
+		query.whereNot('posts.anger', 0);
+	    if (anger_lt) {
+		query.where('posts.anger', '<', anger_lt);
+	    } else if (anger_gt) {
+		query.where('posts.anger', '>', anger_gt);
+	    }
+
+	    if (disgust_lt || disgust_gt)
+		query.whereNot('posts.disgust', 0);
+	    if (disgust_lt) {
+		query.where('posts.disgust', '<', disgust_lt);
+	    } else if (disgust_gt) {
+		query.where('posts.disgust', '>', disgust_gt);
+	    }
+
+	    if (fear_lt || fear_gt)
+		query.whereNot('posts.fear', 0);
+	    if (fear_lt) {
+		query.where('posts.fear', '<', fear_lt);
+	    } else if (fear_gt) {
+		query.where('posts.fear', '>', fear_gt);
+	    }
+
+	    if (joy_lt || joy_gt)
+		query.whereNot('posts.joy', 0);
+	    if (joy_lt) {
+		query.where('posts.joy', '<', joy_lt);
+	    } else if (joy_gt) {
+		query.where('posts.joy', '>', joy_gt);
+	    }
+
+	    if (sadness_lt || sadness_gt)
+		query.whereNot('posts.sadness', 0);
+	    if (sadness_lt) {
+		query.where('posts.sadness', '<', sadness_lt);
+	    } else if (sadness_gt) {
+		query.where('posts.sadness', '>', sadness_gt);
+	    }
+
+	    if (sentiment_lt || sentiment_gt)
+		query.whereNot('posts.sentiment', 0);
+	    if (sentiment_lt) {
+		query.where('posts.sentiment', '<', sentiment_lt);
+	    } else if (sentiment_gt) {
+		query.where('posts.anger', '>', sentiment_gt);
+	    }
+
 	    query.limit(100).asCallback(cb);
 	},
 	function(posts, cb) {
