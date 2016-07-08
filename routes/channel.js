@@ -144,18 +144,21 @@ router.get('/trending', find, function(req, res) {
 	    async.parallel({
 		entity: function(cb) {
 		    var q = req.app.locals.db('entities_posts').select();
+		    q.join('entities', 'entities.id', 'entities_posts.entity_id');
 		    q.whereIn('post_id', ids);
 		    q.where('relevance', '>', '0.2');
 		    q.asCallback(cb);
 		},
 		concept: function(cb) {
 		    var q = req.app.locals.db('concepts_posts').select();
+		    q.join('concepts', 'concepts.id', 'concepts_posts.concept_id');		    
 		    q.whereIn('post_id', ids);
 		    q.where('relevance', '>', '0.2');
 		    q.asCallback(cb);
 		},
 		keywords: function(cb) {
 		    var q = req.app.locals.db('keywords_posts').select();
+		    q.join('keywords', 'keywords.id', 'keywords_posts.keyword_id');		    
 		    q.whereIn('post_id', ids);
 		    q.where('relevance', '>', '0.2');
 		    q.asCallback(cb);
