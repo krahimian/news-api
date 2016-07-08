@@ -2,6 +2,7 @@
 
 var express = require('express'),
     async = require('async'),
+    _ = require('lodash');
     Fetcher = require('fetcher'),
     utils = require('../utils'),
     router = express.Router({mergeParams: true});
@@ -103,7 +104,13 @@ router.delete('/', utils.isAuthenticated, utils.hasParams(['source_id']), find, 
 
 router.get('/trending', find, function(req, res) {
 
+    //TODO - set parameter limits
+
     var offset = parseInt(req.query.offset || 0, 10);
+    var limit = parseInt(req.query.limit || 100, 10);
+    var age = parseInt(req.query.age || 72, 10);
+    var decay = parseInt(req.query.decay || 90000, 10);
+    var excluded_ids = []; //TODO - get from query
 
     async.waterfall([
 	function(cb) {
@@ -116,61 +123,102 @@ router.get('/trending', find, function(req, res) {
 		source_ids.push(i.source_id);
 	    });
 
-	    var query = req.app.locals.db('sources').offset(offset);
+	    var query = req.app.locals.db('sources');
 	    query.select('posts.*', 'sources.score_avg');
 	    query.select(req.app.locals.db.raw('sources.title as source_title'));
 	    query.select(req.app.locals.db.raw('sources.logo_url as source_logo_url'));
-	    query.select(req.app.locals.db.raw('(LOG10(posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, posts.created_at, NOW()) / 45000) as strength'));
+	    query.select(req.app.locals.db.raw('(LOG10(posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, posts.created_at, NOW()) / ?) as strength', [decay]));
 	    query.join('posts', 'posts.source_id', 'sources.id');
 	    query.orderBy('strength', 'desc');
 	    query.whereIn('sources.id', source_ids);
-	    query.whereRaw('posts.created_at > (NOW() - INTERVAL 2 DAY)');
-
-	    query.limit(50).asCallback(cb);
-	}
-    ], function(err, posts) {
-
-	if (err) {
-	    res.status(500).send({ error: err });
-	    return;
-	}
-
-	if (!posts.length) res.status(404).send({ error: 'empty' });
-	else res.status(200).send(posts);
-
-    });
-});
-
-router.get('/latest', find, function(req, res) {
-
-    var offset = parseInt(req.query.offset || 0, 10);
-    var limit = parseInt(req.query.limit || 5, 10);
-
-    async.waterfall([
-	function(cb) {
-	    req.app.locals.db('channels_sources').where('channel_id', res.locals.channel.id).asCallback(cb);
+	    query.whereRaw('posts.created_at > (NOW() - INTERVAL ? HOUR)', age);
+	    query.whereNotIn('posts.id', excluded_ids);
+	    query.limit(100).asCallback(cb);
 	},
-	function(channels_sources, cb) {
-	    var source_ids = [];
-
-	    channels_sources.forEach(function(i) {
-		source_ids.push(i.source_id);
+	function(posts, cb) {
+	    var ids = [];
+	    posts.forEach(function(p) {
+		ids.push(p.id);
 	    });
 
-	    var query = req.app.locals.db('sources').offset(offset);
-	    query.select('posts.*', 'sources.score_avg');
-	    query.select(req.app.locals.db.raw('sources.title as source_title'));
-	    query.select(req.app.locals.db.raw('sources.logo_url as source_logo_url'));
-	    query.select(req.app.locals.db.raw('(LOG10(posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, posts.created_at, NOW()) / 1800) as strength'));
-	    query.join('posts', 'posts.source_id', 'sources.id');
-	    query.orderBy('strength', 'desc');
-	    query.whereRaw('posts.created_at > (NOW() - INTERVAL 2 DAY)');	    
-	    query.whereIn('sources.id', source_ids);	    
+	    async.parallel({
+		entity: function(cb) {
+		    var q = req.app.locals.db('entities_posts').select();
+		    q.whereIn('post_id', ids);
+		    q.where('relevance', '>', '0.2');
+		    q.asCallback(cb);
+		},
+		concept: function(cb) {
+		    var q = req.app.locals.db('concepts_posts').select();
+		    q.whereIn('post_id', ids);
+		    q.where('relevance', '>', '0.2');
+		    q.asCallback(cb);
+		},
+		keywords: function(cb) {
+		    var q = req.app.locals.db('keywords_posts').select();
+		    q.whereIn('post_id', ids);
+		    q.where('relevance', '>', '0.2');
+		    q.asCallback(cb);
+		}
+	    }, function(err, relations) {
+		if (err) {
+		    cb(err);
+		    return;
+		}
 
-	    query.limit(limit).asCallback(cb);
+		var result = [];
 
+		posts.forEach(function(p) {
+		    p.related = [];
+		    p.entities = [];
+		    relations.entity.forEach(function(e, i) {
+			if (e.post_id === p.id)
+			    p.entities.push(relations.entity[i]);
+		    });
+
+		    p.concepts = [];
+		    relations.concept.forEach(function(c, i) {
+			if (c.post_id === p.id)
+			    p.concepts.push(relations.concept[i]);
+		    });
+
+		    p.keywords = [];
+		    relations.keywords.forEach(function(k, i) {
+			if (k.post_id === p.id)
+			    p.keywords.push(relations.keywords[i]);
+		    });
+
+		    var added = false;
+		    var related_id;
+		    var related_score = 0;
+		    for (var j=0; j < result.length; j++) {
+			var intersections = _.intersectionBy(result[j].concepts, p.concepts, 'concept_id').length;
+			intersections += _.intersectionBy(result[j].entities, p.entities, 'entity_id').length;
+			intersections += _.intersectionBy(result[j].keywords, p.keywords, 'keyword_id').length;
+
+			result[j].related.forEach(function(d) {
+			    intersections += _.intersectionBy(p.concepts, d.concepts, 'concept_id').length;
+			    intersections += _.intersectionBy(p.entities, d.entities, 'entity_id').length;
+			    intersections += _.intersectionBy(p.keywords, d.keywords, 'keyword_id').length;
+			});
+
+			if (intersections > 10 && intersections > related_score) {
+			    related_score = intersections;
+			    related_id = j;
+			}
+		    }
+
+		    if (typeof related_id !== 'undefined') {
+			p.intersections = related_score;
+			result[related_id].related.push(p);
+		    } else {
+			result.push(p);
+		    }
+		});
+
+		cb(null, result);
+	    });
 	}
-
     ], function(err, posts) {
 
 	if (err) {
@@ -179,10 +227,9 @@ router.get('/latest', find, function(req, res) {
 	}
 
 	if (!posts.length) res.status(404).send({ error: 'empty' });
-	else res.status(200).send(posts);
+	else res.status(200).send(posts.slice(0,limit));
 
     });
-
 });
 
 router.get('/top', function(req, res) {
