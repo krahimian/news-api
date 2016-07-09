@@ -136,6 +136,11 @@ router.get('/trending', find, function(req, res) {
 		source_ids.push(i.source_id);
 	    });
 
+	    // (CASE WHEN `posts`.`content_url` = '' THEN `posts`.`url` ELSE `posts`.`content_url` END) as main_url
+	    // group by main_url
+	    // group by title
+	    // MAX(strength)
+
 	    var query = req.app.locals.db('sources');
 	    query.select('posts.*', 'sources.score_avg');
 	    query.select(req.app.locals.db.raw('sources.title as source_title'));
@@ -195,7 +200,8 @@ router.get('/trending', find, function(req, res) {
 		query.where('posts.anger', '>', sentiment_gt);
 	    }
 
-	    query.limit(100).asCallback(cb);
+	    query.limit(100);
+	    query.asCallback(cb);
 	},
 	function(posts, cb) {
 	    var ids = [];
@@ -253,7 +259,6 @@ router.get('/trending', find, function(req, res) {
 			    p.keywords.push(relations.keywords[i]);
 		    });
 
-		    var added = false;
 		    var related_id;
 		    var related_score = 0;
 		    for (var j=0; j < result.length; j++) {
@@ -261,13 +266,7 @@ router.get('/trending', find, function(req, res) {
 			intersections += _.intersectionBy(result[j].entities, p.entities, 'entity_id').length;
 			intersections += _.intersectionBy(result[j].keywords, p.keywords, 'keyword_id').length;
 
-			result[j].related.forEach(function(d) {
-			    intersections += _.intersectionBy(p.concepts, d.concepts, 'concept_id').length;
-			    intersections += _.intersectionBy(p.entities, d.entities, 'entity_id').length;
-			    intersections += _.intersectionBy(p.keywords, d.keywords, 'keyword_id').length;
-			});
-
-			if (intersections > 10 && intersections > related_score) {
+			if (intersections > 7 && intersections > related_score) {
 			    related_score = intersections;
 			    related_id = j;
 			}
@@ -318,7 +317,8 @@ router.get('/top', function(req, res) {
     // exclusions
     query.whereNot('sources.id', 96);
 
-    query.limit(limit).then(function(posts) {
+    query.limit(limit);
+    query.then(function(posts) {
 	if (!posts.length) res.status(404).send({ error: 'empty' });	
 	else res.status(200).send(posts);
     }).catch(function(err) {
