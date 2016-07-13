@@ -136,21 +136,18 @@ router.get('/trending', find, function(req, res) {
 		source_ids.push(i.source_id);
 	    });
 
-	    // (CASE WHEN `posts`.`content_url` = '' THEN `posts`.`url` ELSE `posts`.`content_url` END) as main_url
-	    // group by main_url
-	    // group by title
-	    // MAX(strength)
-
 	    var query = req.app.locals.db('sources');
 	    query.select('posts.*', 'sources.score_avg');
+	    query.select(req.app.locals.db.raw('(CASE WHEN `posts`.`content_url` = "" THEN `posts`.`url` ELSE `posts`.`content_url` END) as main_url'));
 	    query.select(req.app.locals.db.raw('sources.title as source_title'));
 	    query.select(req.app.locals.db.raw('sources.logo_url as source_logo_url'));
-	    query.select(req.app.locals.db.raw('(LOG10(posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, posts.created_at, NOW()) / ?) as strength', [decay]));
+	    query.select(req.app.locals.db.raw('MAX(LOG10(posts.score / sources.score_avg) - TIMESTAMPDIFF(SECOND, posts.created_at, NOW()) / ?) as strength', [decay]));
 	    query.join('posts', 'posts.source_id', 'sources.id');
 	    query.orderBy('strength', 'desc');
 	    query.whereIn('sources.id', source_ids);
 	    query.whereRaw('posts.created_at > (NOW() - INTERVAL ? HOUR)', age);
 	    query.whereNotIn('posts.id', excluded_ids);
+	    query.groupBy('main_url', 'posts.title');
 
 	    if (anger_lt || anger_gt)
 		query.whereNot('posts.anger', 0);
