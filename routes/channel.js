@@ -259,12 +259,14 @@ router.get('/trending', find, function(req, res) {
 		    var related_id;
 		    var related_score = 0;
 		    for (var j=0; j < result.length; j++) {
-			var intersections = _.intersectionBy(result[j].concepts, p.concepts, 'concept_id').length;
-			intersections += _.intersectionBy(result[j].entities, p.entities, 'entity_id').length;
-			intersections += _.intersectionBy(result[j].keywords, p.keywords, 'keyword_id').length;
+			var rc = _.intersectionBy(result[j].concepts, p.concepts, 'concept_id');
+			var re = _.intersectionBy(result[j].entities, p.entities, 'entity_id');
+			var rk = _.intersectionBy(result[j].keywords, p.keywords, 'keyword_id');
 
-			if (intersections > 7 && intersections > related_score) {
-			    related_score = intersections;
+			var total_intersections = rc.length + re.length + rk.length;
+
+			if (total_intersections > 7 && total_intersections > related_score) {
+			    related_score = total_intersections;
 			    related_id = j;
 			}
 		    }
@@ -274,6 +276,47 @@ router.get('/trending', find, function(req, res) {
 			result[related_id].related.push(p);
 		    } else {
 			result.push(p);
+		    }
+		});
+
+		result.forEach(function(p) {
+		    if (p.related.length) {
+			var limit = p.related.length + 1;
+			var entities = p.related.map(function(e) { return e.entities; });
+			entities.push(p.entities);
+			entities = _.groupBy(_.flatten(entities), 'entity_id');
+			p.related_entities = [];
+			_.forEach(entities, function(value, key) {
+			    if (value.length < limit) return;
+			    var a = value[0];
+			    a.relevance = _.meanBy(value, 'relevance');
+			    p.related_entities.push(a);
+			});
+			p.related_entities = _.orderBy(p.related_entities, 'relevance', 'desc');
+
+			var keywords = p.related.map(function(e) { return e.keywords; });
+			keywords.push(p.keywords);
+			keywords = _.groupBy(_.flatten(keywords), 'keyword_id');
+			p.related_keywords = [];
+			_.forEach(keywords, function(value, key) {
+			    if (value.length < limit) return;
+			    var a = value[0];
+			    a.relevance = _.meanBy(value, 'relevance');
+			    p.related_keywords.push(a);
+			});
+			p.related_keywords = _.orderBy(p.related_keywords, 'relevance', 'desc');
+
+			var concepts = p.related.map(function(e) { return e.concepts; });
+			concepts.push(p.concepts);
+			concepts = _.groupBy(_.flatten(concepts), 'concept_id');
+			p.related_concepts = [];
+			_.forEach(concepts, function(value, key) {
+			    if (value.length < limit) return;
+			    var a = value[0];
+			    a.relevance = _.meanBy(value, 'relevance');
+			    p.related_concepts.push(a);
+			});
+			p.related_concepts = _.orderBy(p.related_concepts, 'relevance', 'desc');
 		    }
 		});
 
