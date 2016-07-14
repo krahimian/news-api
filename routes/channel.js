@@ -104,13 +104,18 @@ router.delete('/', utils.isAuthenticated, utils.hasParams(['source_id']), find, 
 
 router.get('/trending', find, function(req, res) {
 
-    //TODO - set parameter limits
-
     var offset = parseInt(req.query.offset || 0, 10);
+
     var limit = parseInt(req.query.limit || 100, 10);
+    if (limit > 100) limit = 100;
+
     var age = parseInt(req.query.age || 72, 10);
+    if (age > 168) age = 168;
+
     var decay = parseInt(req.query.decay || 90000, 10);
-    var excluded_ids = []; //TODO - get from query
+
+    var excluded_ids = req.query.excluded_ids || '';
+    excluded_ids = excluded_ids.split(',');
 
     var anger_lt = parseFloat(req.query.anger_lt);
     var anger_gt = parseFloat(req.query.anger_gt);
