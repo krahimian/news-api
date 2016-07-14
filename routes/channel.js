@@ -152,7 +152,7 @@ router.get('/trending', find, function(req, res) {
 	    query.whereIn('sources.id', source_ids);
 	    query.whereRaw('posts.created_at > (NOW() - INTERVAL ? HOUR)', age);
 	    query.whereNotIn('posts.id', excluded_ids);
-	    query.groupBy('main_url', 'posts.title');
+	    query.groupBy('main_url');
 
 	    if (anger_lt || anger_gt)
 		query.whereNot('posts.anger', 0);
