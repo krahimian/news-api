@@ -15,7 +15,7 @@
 	"express": "^4.13.0",
 	"fetcher": "https://github.com/mistakia/news-fetcher/tarball/0.0.21",
 	"jsonwebtoken": "^7.0.1",
-	"knex": "^0.8.6",
+	"knex": "^0.20.13",
 	"lodash": "^4.13.1",
 	"log": "https://github.com/vacay/log/tarball/0.0.3",
 	"longjohn": "^0.2.8",
